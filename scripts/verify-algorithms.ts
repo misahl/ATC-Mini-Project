@@ -69,5 +69,25 @@ const report = validateAutomaton(nfaEnds01);
 console.log('6. Validator report: isValid =', report.isValid, 'type =', report.detectedType);
 console.assert(report.isValid === true, 'Expected valid automaton');
 
+// 7. Test Student Notebook Question (ε-NFA to DFA)
+const studentNotebookAuto: any = {
+  type: 'ENFA',
+  states: ['q0', 'q1', 'q2'],
+  alphabet: ['0', '1'],
+  initialState: 'q0',
+  finalStates: ['q2'],
+  transitions: {
+    q0: { '0': ['q0'], '1': [], 'ε': ['q1'] },
+    q1: { '0': [], '1': ['q2'], 'ε': [] },
+    q2: { '0': [], '1': [], 'ε': [] }
+  }
+};
+const studentRes = convertEnfaToDfa(studentNotebookAuto);
+console.log('7. Student Notebook ε-NFA to DFA:');
+console.log('   - Initial state:', studentRes.convertedAutomaton.initialState);
+console.log('   - DFA states:', studentRes.convertedAutomaton.states);
+console.log('   - DFA final states:', studentRes.convertedAutomaton.finalStates);
+console.log('   - DFA transitions:', JSON.stringify(studentRes.convertedAutomaton.transitions));
+
 console.log('=== ALL MATHEMATICAL ENGINE TESTS PASSED SUCCESSFULLY! ===');
 

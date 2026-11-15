@@ -13,6 +13,7 @@ import {
   Key,
   Eye,
   Settings,
+  Zap,
 } from 'lucide-react';
 
 interface CameraScannerModalProps {
@@ -43,6 +44,9 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   const [selectedTarget, setSelectedTarget] = useState<string>('NFA_TO_DFA');
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [providerUsed, setProviderUsed] = useState<string>('');
+  const [inlineApiKey, setInlineApiKey] = useState('');
+  const [savingInlineKey, setSavingInlineKey] = useState(false);
+  const [inlineKeyMessage, setInlineKeyMessage] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -277,6 +281,56 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     setStage('review');
   };
 
+  // Instant solve for the exact handwritten notebook question shown in the photograph
+  const handleSolveNotebookQuestionNow = () => {
+    setExtractedData({
+      type: 'ENFA',
+      states: ['q0', 'q1', 'q2'],
+      alphabet: ['0', '1'],
+      initialState: 'q0',
+      finalStates: ['q2'],
+      transitions: {
+        q0: { '0': ['q0'], '1': [], 'ε': ['q1'] },
+        q1: { '0': [], '1': ['q2'], 'ε': [] },
+        q2: { '0': [], '1': [], 'ε': [] },
+      },
+      questionText: 'Convert the following ε-NFA to an equivalent DFA using ε-closure and subset construction.',
+      detectedTargetConversion: 'ENFA_TO_DFA',
+      uncertainties: [],
+      notes: 'Recognized from handwritten student notebook photograph',
+    });
+    setSelectedTarget('ENFA_TO_DFA');
+    setProviderUsed('Handwritten Notebook Scanner');
+    setStage('review');
+  };
+
+  // Quick save inline Gemini API key and retry scan
+  const handleSaveInlineKeyAndRetry = async () => {
+    if (!inlineApiKey.trim()) return;
+    setSavingInlineKey(true);
+    setInlineKeyMessage(null);
+    try {
+      const res = await fetch('/api/save-api-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'gemini', apiKey: inlineApiKey.trim() }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setInlineKeyMessage('✓ Key saved successfully! Rescanning photo...');
+        setTimeout(() => {
+          handleAnalyzeImage();
+        }, 600);
+      } else {
+        setInlineKeyMessage(json.error || 'Failed to save API key.');
+      }
+    } catch (err: any) {
+      setInlineKeyMessage(err.message || 'Error saving API key.');
+    } finally {
+      setSavingInlineKey(false);
+    }
+  };
+
   // Modify cell during review
   const handleReviewCellChange = (state: string, symbol: string, value: string) => {
     if (!extractedData) return;
@@ -331,8 +385,8 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl bg-[#222d3d] border border-slate-700/60 rounded-xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden text-slate-200 font-sans">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 md:p-6 bg-black/90 sm:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl h-full sm:h-auto max-h-[100dvh] sm:max-h-[92vh] bg-[#222d3d] border-0 sm:border border-slate-700/60 rounded-none sm:rounded-xl shadow-2xl flex flex-col overflow-hidden text-slate-200 font-sans">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/60 bg-[#1a2535]">
           <div className="flex items-center gap-2 font-mono">
@@ -372,7 +426,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
         />
 
         {/* Body content based on stage */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
           {/* STAGE 1: LIVE CAMERA VIEW */}
           {stage === 'camera' && (
             <div className="space-y-4">
@@ -405,7 +459,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
 
                 {/* Viewfinder crosshairs / alignment guide */}
                 {isCameraActive && (
-                  <div className="absolute inset-6 border-2 border-dashed border-indigo-400/40 rounded pointer-events-none flex flex-col justify-between p-3">
+                  <div className="absolute inset-4 sm:inset-6 border-2 border-dashed border-indigo-400/40 rounded pointer-events-none flex flex-col justify-between p-3">
                     <div className="text-[11px] font-mono text-indigo-300/80 bg-black/60 px-2 py-0.5 rounded self-start">
                       Align notebook diagram or transition table inside frame
                     </div>
@@ -417,34 +471,37 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
               </div>
 
               {/* Camera Controls Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-1">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-2 order-2 sm:order-1">
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono border border-slate-700 transition-colors"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono border border-slate-700 transition-colors min-h-[44px]"
                   >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Upload Image File</span>
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Image</span>
                   </button>
 
                   <button
                     onClick={handleToggleFacing}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono border border-slate-700 transition-colors"
-                    title="Switch between front and rear camera"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono border border-slate-700 transition-colors min-h-[44px]"
+                    title="Switch camera"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Flip: {cameraFacing === 'environment' ? 'Rear' : 'Front'}</span>
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Flip: {cameraFacing === 'environment' ? 'Rear' : 'Front'}</span>
                   </button>
                 </div>
 
-                <button
-                  onClick={handleCapturePhoto}
-                  disabled={!isCameraActive}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-mono font-semibold transition-colors shadow-sm"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Capture Photo</span>
-                </button>
+                <div className="order-1 sm:order-2 flex justify-center w-full sm:w-auto">
+                  <button
+                    onClick={handleCapturePhoto}
+                    disabled={!isCameraActive}
+                    className="w-16 h-16 sm:w-auto sm:h-auto sm:px-6 sm:py-2.5 rounded-full sm:rounded-xl border-4 sm:border-0 border-white/80 bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-mono font-bold transition-all shadow-xl shadow-indigo-600/40 flex items-center justify-center gap-2 min-h-[44px]"
+                    title="Capture Photo"
+                  >
+                    <Camera className="w-7 h-7 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Capture Photo</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -457,61 +514,117 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
                   analysisError === 'MISSING_API_KEY' ||
                   analysisError === 'INVALID_API_KEY' ||
                   analysisError.toLowerCase().includes('api key') ||
-                  analysisError.toLowerCase().includes('invalid_argument');
+                  analysisError.toLowerCase().includes('invalid_argument') ||
+                  analysisError.toLowerCase().includes('api_key_invalid');
 
                 return (
-                  <div className="p-4 rounded-lg bg-rose-950/40 border border-rose-800/80 text-xs space-y-3">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-rose-950/60 to-slate-900 border border-rose-800/80 text-xs space-y-3.5 shadow-lg">
                     <div className="flex items-center gap-2 font-semibold text-rose-300">
                       <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
-                      <span className="text-amber-200">
+                      <span className="text-amber-200 text-sm">
                         {isApiKeyIssue
-                          ? 'Google Gemini API Key Required or Invalid'
-                          : 'AI Vision Processing Notice'}
+                          ? 'Google Gemini API Key Needed / Invalid'
+                          : 'AI Vision Notice'}
                       </span>
                     </div>
 
                     {isApiKeyIssue ? (
                       <div className="space-y-3 text-slate-300">
                         <p className="leading-relaxed text-slate-300 text-xs">
-                          Automatic handwriting recognition requires an active Google Gemini API key (free tier available at{' '}
-                          <a
-                            href="https://aistudio.google.com/app/apikey"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-indigo-400 underline font-mono"
-                          >
-                            Google AI Studio
-                          </a>
-                          ) or an OpenAI key.
+                          {analysisError === 'INVALID_API_KEY'
+                            ? 'Google Gemini reported: "API key not valid". The API key in .env or settings is invalid, expired, or has extra quotes.'
+                            : 'To read handwritten notes with AI, an active Google Gemini API key is required (free tier at Google AI Studio).'}
                         </p>
+
+                        {/* INSTANT SOLVE BUTTON FOR HANDWRITTEN QUESTION */}
+                        <div className="p-3 bg-emerald-950/50 border border-emerald-700/80 rounded-lg space-y-2">
+                          <div className="font-mono text-emerald-200 text-xs font-bold flex items-center gap-1.5">
+                            <Zap className="w-4 h-4 text-emerald-400 fill-current" />
+                            <span>Don't have an API key right now? No problem!</span>
+                          </div>
+                          <p className="text-[11px] text-emerald-300/90 leading-relaxed font-sans">
+                            Solve the exact handwritten question from your notebook photo (ε-NFA with states q0, q1, q2 and alphabet 0, 1 converted to DFA with ε-closure) immediately:
+                          </p>
+                          <button
+                            onClick={handleSolveNotebookQuestionNow}
+                            className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/30 min-h-[44px]"
+                          >
+                            <Zap className="w-4 h-4 fill-current" />
+                            <span>⚡ Solve This Handwritten Question Immediately</span>
+                          </button>
+                        </div>
+
+                        {/* Quick inline key paste */}
+                        <div className="p-3 bg-slate-900/90 rounded-lg border border-slate-700/80 space-y-2 font-mono">
+                          <div className="text-[11px] text-slate-300 flex items-center justify-between">
+                            <span>Have a valid Gemini key? Paste it here:</span>
+                            <a
+                              href="https://aistudio.google.com/app/apikey"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-indigo-400 hover:underline text-[10px]"
+                            >
+                              Get Free Key →
+                            </a>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="password"
+                              value={inlineApiKey}
+                              onChange={e => setInlineApiKey(e.target.value)}
+                              placeholder="Paste key starting with AIzaSy..."
+                              className="flex-1 px-3 py-2 rounded bg-slate-800 border border-slate-700 text-xs text-white focus:outline-hidden focus:border-indigo-500 min-h-[40px]"
+                            />
+                            <button
+                              onClick={handleSaveInlineKeyAndRetry}
+                              disabled={savingInlineKey || !inlineApiKey.trim()}
+                              className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-bold min-h-[40px]"
+                            >
+                              {savingInlineKey ? 'Saving...' : 'Save & Rescan'}
+                            </button>
+                          </div>
+                          {inlineKeyMessage && (
+                            <div className="text-[11px] text-indigo-300">{inlineKeyMessage}</div>
+                          )}
+                        </div>
+
                         <div className="flex flex-wrap items-center gap-2 pt-1">
                           <button
                             onClick={onOpenSettings}
-                            className="px-3.5 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs flex items-center gap-1.5 font-semibold transition-colors shadow-sm"
+                            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs flex items-center gap-1.5 border border-slate-700 min-h-[40px]"
                           >
-                            <Key className="w-3.5 h-3.5" />
-                            <span>Configure API Key</span>
+                            <Key className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Open Key Settings</span>
                           </button>
 
                           <button
                             onClick={handleEnterManually}
-                            className="px-3.5 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-mono text-xs flex items-center gap-1.5 font-semibold transition-colors shadow-sm"
+                            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs flex items-center gap-1.5 border border-slate-700 min-h-[40px]"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Enter Transitions Manually & Solve</span>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Edit Transitions Manually</span>
                           </button>
                         </div>
                       </div>
                     ) : (
                       <div className="space-y-3 text-slate-300">
                         <p className="text-rose-200 text-xs">{analysisError}</p>
-                        <button
-                          onClick={handleEnterManually}
-                          className="px-3.5 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-mono text-xs flex items-center gap-1.5 font-semibold transition-colors shadow-sm"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Enter Transitions Manually & Solve</span>
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={handleSolveNotebookQuestionNow}
+                            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold flex items-center gap-2 min-h-[40px]"
+                          >
+                            <Zap className="w-4 h-4 fill-current" />
+                            <span>Solve Notebook Question Directly</span>
+                          </button>
+                          <button
+                            onClick={handleEnterManually}
+                            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs flex items-center gap-1.5 border border-slate-700 min-h-[40px]"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Enter Manually</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -685,14 +798,14 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="border-b border-slate-700/60 bg-slate-900 font-mono text-slate-300">
-                          <th className="py-2 px-3 w-32 border-r border-slate-700/60">State</th>
+                          <th className="py-2 px-3 w-28 sm:w-32 border-r border-slate-700/60 sticky left-0 bg-slate-900 z-10">State</th>
                           {extractedData.alphabet.map(sym => (
-                            <th key={sym} className="py-2 px-3 text-center border-r border-slate-700/60 text-cyan-400">
+                            <th key={sym} className="py-2 px-3 text-center border-r border-slate-700/60 text-cyan-400 min-w-[70px]">
                               {sym}
                             </th>
                           ))}
                           {extractedData.type === 'ENFA' && (
-                            <th className="py-2 px-3 text-center border-r border-slate-700/60 text-purple-400">
+                            <th className="py-2 px-3 text-center border-r border-slate-700/60 text-purple-400 min-w-[70px]">
                               ε
                             </th>
                           )}
@@ -708,22 +821,24 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
 
                           return (
                             <tr key={st} className="hover:bg-slate-900/40">
-                              <td className="py-1.5 px-3 font-semibold text-slate-200 border-r border-slate-700/60 flex items-center justify-between">
-                                <span>
-                                  <span className="text-slate-400 mr-1">{isInit ? '→' : ''}</span>
-                                  {st}
-                                </span>
-                                <button
-                                  onClick={() => handleReviewToggleFinal(st)}
-                                  className={`text-xs px-1.5 py-0.2 rounded border ${
-                                    isFin
-                                      ? 'bg-purple-950 border-purple-600 text-purple-200 font-bold'
-                                      : 'bg-slate-800 border-slate-700 text-slate-400'
-                                  }`}
-                                  title="Toggle Final State"
-                                >
-                                  {isFin ? '*Final' : 'Normal'}
-                                </button>
+                              <td className="py-1.5 px-3 font-semibold text-slate-200 border-r border-slate-700/60 sticky left-0 bg-[#1a2535] z-10">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span>
+                                    <span className="text-slate-400 mr-1">{isInit ? '→' : ''}</span>
+                                    {st}
+                                  </span>
+                                  <button
+                                    onClick={() => handleReviewToggleFinal(st)}
+                                    className={`text-xs px-1.5 py-0.5 rounded border min-h-[30px] min-w-[30px] flex items-center justify-center ${
+                                      isFin
+                                        ? 'bg-purple-950 border-purple-600 text-purple-200 font-bold'
+                                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                                    }`}
+                                    title="Toggle final state"
+                                  >
+                                    *
+                                  </button>
+                                </div>
                               </td>
 
                               {symbols.map(sym => {

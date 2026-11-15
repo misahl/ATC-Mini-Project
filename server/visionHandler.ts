@@ -136,6 +136,7 @@ async function callGeminiVision(apiKey: string, base64Data: string, mimeType: st
               parsedErr.error.status === 'INVALID_ARGUMENT' ||
               parsedErr.error.code === 400 ||
               parsedErr.error.code === 401 ||
+              JSON.stringify(parsedErr).includes('API_KEY_INVALID') ||
               message.toLowerCase().includes('api key')
             ) {
               isKeyError = true;
@@ -144,8 +145,16 @@ async function callGeminiVision(apiKey: string, base64Data: string, mimeType: st
         } catch {
           // ignore parse error
         }
-        if (isKeyError || errorText.includes('API_KEY_INVALID') || errorText.includes('API key not valid')) {
-          const keyErr: any = new Error(message || 'API key not valid. Please pass a valid API key.');
+        if (
+          isKeyError ||
+          res.status === 400 ||
+          res.status === 401 ||
+          errorText.includes('API_KEY_INVALID') ||
+          errorText.includes('API key not valid')
+        ) {
+          const keyErr: any = new Error(
+            'The Google Gemini API key is invalid, unauthorized, or expired. Please verify or update your API key in Settings.'
+          );
           keyErr.isApiKeyError = true;
           throw keyErr;
         }
@@ -521,9 +530,11 @@ export async function handleVisionScanRequest(req: IncomingMessage, res: ServerR
           (err.message && (
             err.message.includes('API key not valid') ||
             err.message.includes('API_KEY_INVALID') ||
+            err.message.includes('INVALID_ARGUMENT') ||
             err.message.includes('Invalid Gemini API Key') ||
             err.message.includes('Invalid OpenAI API Key') ||
-            err.message.includes('invalid_api_key')
+            err.message.includes('invalid_api_key') ||
+            err.message.toLowerCase().includes('api key')
           ));
 
         res.statusCode = isKeyErr ? 401 : 500;

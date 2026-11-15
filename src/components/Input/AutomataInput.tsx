@@ -4,7 +4,7 @@ import { EPSILON } from '../../types/automata';
 import type { SampleProblem } from '../../utils/presets';
 import { SAMPLE_PROBLEMS } from '../../utils/presets';
 import { isEpsilon } from '../../utils/automataEngine';
-import { Plus, AlertCircle, ArrowRight } from 'lucide-react';
+import { Plus, AlertCircle, Play } from 'lucide-react';
 
 interface AutomataInputProps {
   value: Automaton;
@@ -211,8 +211,8 @@ export const AutomataInput: React.FC<AutomataInputProps> = ({
   return (
     <div className="bg-[#222d3d] rounded-lg border border-slate-700/60 p-5 space-y-5 text-slate-200">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/60 pb-4">
-        <div className="flex items-center gap-2 font-mono text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/60 pb-4">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
           <span className="text-slate-400">Formal Definition:</span>
           <span className="px-2 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700 font-semibold">
             M = (Q, Σ, δ, q₀, F)
@@ -222,8 +222,8 @@ export const AutomataInput: React.FC<AutomataInputProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-slate-400">Preset:</span>
+        <div className="flex items-center gap-2 text-xs w-full sm:w-auto">
+          <span className="text-slate-400 shrink-0">Preset:</span>
           <select
             aria-label="Preset problem"
             onChange={e => {
@@ -231,7 +231,7 @@ export const AutomataInput: React.FC<AutomataInputProps> = ({
               if (selected) handleLoadSample(selected);
             }}
             defaultValue=""
-            className="bg-[#1a2535] border border-slate-700 text-slate-300 rounded px-2.5 py-1 text-xs font-mono focus:border-indigo-500 focus:outline-none"
+            className="w-full sm:w-auto bg-[#1a2535] border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:border-indigo-500 focus:outline-none min-h-[38px]"
           >
             <option value="" disabled>
               Select textbook example...
@@ -418,27 +418,35 @@ export const AutomataInput: React.FC<AutomataInputProps> = ({
 
       {/* Transition Table */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-mono font-semibold text-slate-300">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+          <span className="font-mono font-semibold text-slate-200">
             Transition Function δ: Q × Σ → {value.type === 'DFA' ? 'Q' : '2^Q'}
           </span>
-          <span className="text-[11px] text-slate-500 font-mono">
+          <span className="text-[11px] text-slate-400 font-mono">
             {value.type === 'DFA'
               ? 'Enter single state per cell (or leave empty)'
               : 'Enter comma-separated states (e.g. q0, q1) or leave empty'}
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded border border-slate-700/60 bg-[#1a2535]">
-          <table className="w-full text-left text-xs border-collapse">
+        {/* Mobile horizontal scroll hint */}
+        <div className="text-[10px] font-mono text-indigo-400 flex items-center justify-between sm:hidden px-1">
+          <span>Scroll table horizontally for all symbols →</span>
+          <span>State column is locked</span>
+        </div>
+
+        <div className="overflow-x-auto touch-scroll rounded-xl border border-slate-700/60 bg-[#1a2535] shadow-xs">
+          <table className="w-full text-left text-xs border-collapse min-w-[320px]">
             <thead>
-              <tr className="border-b border-slate-700/60 bg-slate-900/80 font-mono text-slate-300">
-                <th className="py-2 px-3 w-32 border-r border-slate-700/60">State</th>
+              <tr className="border-b border-slate-700/60 bg-[#1e2838] font-mono text-slate-300">
+                <th className="sticky left-0 bg-[#1e2838] z-20 py-2.5 px-3 min-w-[90px] sm:w-32 border-r border-slate-700/70 shadow-sm">
+                  State
+                </th>
                 {tableSymbols.map(sym => (
                   <th
                     key={sym}
-                    className={`py-2 px-3 text-center border-r border-slate-700/60 last:border-none ${
-                      isEpsilon(sym) ? 'text-purple-400' : 'text-cyan-400'
+                    className={`py-2.5 px-3 text-center border-r border-slate-700/60 last:border-none min-w-[85px] sm:min-w-[100px] ${
+                      isEpsilon(sym) ? 'text-purple-400 font-bold' : 'text-cyan-400 font-bold'
                     }`}
                   >
                     {isEpsilon(sym) ? 'ε' : sym}
@@ -446,15 +454,15 @@ export const AutomataInput: React.FC<AutomataInputProps> = ({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800 font-mono">
+            <tbody className="divide-y divide-slate-700/50 font-mono">
               {value.states.map(state => {
                 const isInit = state === value.initialState;
                 const isFin = value.finalStates.includes(state);
 
                 return (
-                  <tr key={state} className="hover:bg-slate-900/40">
-                    <td className="py-1.5 px-3 font-semibold text-slate-200 border-r border-slate-700/60">
-                      <span className="text-slate-400 mr-1.5">
+                  <tr key={state} className="hover:bg-slate-800/40">
+                    <td className="sticky left-0 bg-[#222d3d] z-10 py-2 px-3 font-semibold text-slate-200 border-r border-slate-700/70 shadow-sm min-w-[90px]">
+                      <span className="text-slate-400 mr-1.5 font-bold">
                         {isInit ? '→' : ''}{isFin ? '*' : ''}
                       </span>
                       <span>{state}</span>
@@ -467,14 +475,14 @@ export const AutomataInput: React.FC<AutomataInputProps> = ({
                       return (
                         <td
                           key={sym}
-                          className="py-1 px-2 border-r border-slate-700/60 last:border-none"
+                          className="py-1.5 px-2 border-r border-slate-700/60 last:border-none min-w-[85px] sm:min-w-[100px]"
                         >
                           <input
                             type="text"
                             placeholder="∅"
                             value={cellValue}
                             onChange={e => handleCellChange(state, sym, e.target.value)}
-                            className="w-full bg-[#222d3d] border border-slate-700/60 rounded px-2 py-1 text-xs text-center text-slate-200 font-mono focus:border-indigo-500 focus:outline-none placeholder:text-slate-700"
+                            className="w-full bg-[#1a2535] border border-slate-700/70 rounded-lg px-2.5 py-1.5 text-xs text-center text-slate-100 font-mono focus:border-indigo-500 focus:outline-none placeholder:text-slate-600 min-h-[38px] transition-colors"
                           />
                         </td>
                       );
@@ -489,13 +497,13 @@ export const AutomataInput: React.FC<AutomataInputProps> = ({
 
       {/* Solve Button */}
       {onSolve && (
-        <div className="flex justify-end pt-1">
+        <div className="flex pt-1">
           <button
             onClick={onSolve}
-            className="flex items-center gap-2 px-5 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-semibold shadow-xs transition-colors"
+            className="w-full sm:w-auto ml-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-mono text-sm font-bold shadow-lg shadow-indigo-600/30 transition-all min-h-[46px]"
           >
-            <span>Run Conversion Algorithm</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <Play className="w-4 h-4 fill-current" />
+            <span>Solve Automaton</span>
           </button>
         </div>
       )}

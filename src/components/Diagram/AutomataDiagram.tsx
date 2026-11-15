@@ -164,6 +164,72 @@ export const AutomataDiagram: React.FC<AutomataDiagramProps> = ({
     setIsPanning(false);
   };
 
+  // Touch handlers for mobile devices
+  const [touchPinchDist, setTouchPinchDist] = useState<number | null>(null);
+
+  const getTouchDistance = (t1: React.Touch, t2: React.Touch) => {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStartNode = (stateId: string, e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const pos = positions[stateId] || { x: 0, y: 0 };
+      setDraggingNode(stateId);
+      setDragOffset({
+        x: touch.clientX / zoom - pos.x,
+        y: touch.clientY / zoom - pos.y,
+      });
+    }
+  };
+
+  const handleTouchStartSvg = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setIsPanning(true);
+      setPanStart({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+      setTouchPinchDist(null);
+    } else if (e.touches.length === 2) {
+      setIsPanning(false);
+      setDraggingNode(null);
+      const dist = getTouchDistance(e.touches[0], e.touches[1]);
+      setTouchPinchDist(dist);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      if (draggingNode) {
+        const newX = touch.clientX / zoom - dragOffset.x;
+        const newY = touch.clientY / zoom - dragOffset.y;
+        setPositions(prev => ({
+          ...prev,
+          [draggingNode]: { x: newX, y: newY },
+        }));
+      } else if (isPanning) {
+        setPan({
+          x: touch.clientX - panStart.x,
+          y: touch.clientY - panStart.y,
+        });
+      }
+    } else if (e.touches.length === 2 && touchPinchDist !== null) {
+      const dist = getTouchDistance(e.touches[0], e.touches[1]);
+      const factor = dist / touchPinchDist;
+      setZoom(prev => Math.min(2.0, Math.max(0.4, prev * factor)));
+      setTouchPinchDist(dist);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setDraggingNode(null);
+    setIsPanning(false);
+    setTouchPinchDist(null);
+  };
+
   // Export diagram as SVG
   const handleExportSvg = () => {
     if (!svgRef.current) return;
@@ -198,46 +264,54 @@ export const AutomataDiagram: React.FC<AutomataDiagramProps> = ({
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <button
             onClick={() => setZoom(z => Math.min(2, z + 0.15))}
-            className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+            className="min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
             title="Zoom In"
+            aria-label="Zoom in"
           >
-            <Maximize2 className="w-3 h-3" />
+            <Maximize2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setZoom(z => Math.max(0.4, z - 0.15))}
-            className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+            className="min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
             title="Zoom Out"
+            aria-label="Zoom out"
           >
-            <Minimize2 className="w-3 h-3" />
+            <Minimize2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={resetLayout}
-            className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+            className="min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
             title="Reset Diagram Layout"
+            aria-label="Reset layout"
           >
-            <RotateCcw className="w-3 h-3" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleExportSvg}
-            className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors flex items-center gap-1 text-[11px] px-2 ml-1"
+            className="min-h-[32px] sm:min-h-[36px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors flex items-center gap-1.5 text-xs px-2.5 ml-1"
             title="Download SVG Diagram"
+            aria-label="Export diagram as SVG"
           >
-            <Download className="w-3 h-3" />
-            <span className="hidden sm:inline">Export SVG</span>
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">SVG</span>
           </button>
         </div>
       </div>
 
-      {/* SVG Canvas */}
+      {/* SVG Canvas with touch drag & pinch zoom */}
       <div
-        className="w-full h-80 sm:h-96 cursor-grab active:cursor-grabbing select-none relative bg-[radial-gradient(#334155_1.2px,transparent_1.2px)] [background-size:16px_16px]"
+        className="w-full h-64 sm:h-80 md:h-96 cursor-grab active:cursor-grabbing select-none relative bg-[radial-gradient(#334155_1.2px,transparent_1.2px)] [background-size:16px_16px] touch-none"
         onMouseDown={handleMouseDownSvg}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStartSvg}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <svg
           ref={svgRef}
@@ -511,6 +585,7 @@ export const AutomataDiagram: React.FC<AutomataDiagramProps> = ({
                   key={`node-${state}`}
                   transform={`translate(${pos.x}, ${pos.y})`}
                   onMouseDown={e => handleMouseDownNode(state, e)}
+                  onTouchStart={e => handleTouchStartNode(state, e)}
                   className="cursor-move group"
                 >
                   {/* Outer circle */}

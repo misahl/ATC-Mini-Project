@@ -15,12 +15,14 @@ import { StepByStepSolution } from './components/Solution/StepByStepSolution';
 import { AutomataValidatorView } from './components/Validator/AutomataValidatorView';
 import { StringSimulator } from './components/Simulator/StringSimulator';
 import { LearnAutomata } from './components/Learn/LearnAutomata';
+import { DashboardHome } from './components/Home/DashboardHome';
 import { CameraScannerModal } from './components/Scanner/CameraScannerModal';
 import { ApiKeySettingsModal } from './components/Scanner/ApiKeySettingsModal';
 import { Camera } from 'lucide-react';
 
 export function App() {
-  const [currentTab, setCurrentTab] = useState<NavItem>('nfa-to-dfa');
+  const [currentTab, setCurrentTab] = useState<NavItem>('home');
+  const [solverView, setSolverView] = useState<'all' | 'input' | 'diagram' | 'solution'>('all');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [scannedNotice, setScannedNotice] = useState<string | null>(null);
@@ -141,25 +143,27 @@ export function App() {
       />
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Quick Camera Scan Callout Banner */}
-        <div className="p-3 rounded-lg bg-[var(--bg-card,#222d3d)] border border-slate-700/60 flex flex-wrap items-center justify-between gap-3 text-xs font-mono shadow-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-400" />
-            <span className="text-slate-200 font-semibold">Live Camera Automata Solver:</span>
-            <span className="text-slate-300 hidden md:inline">
-              Point your camera at any handwritten or printed state diagram or transition table.
-            </span>
-          </div>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 pb-24 lg:pb-8">
+        {/* Quick Camera Scan Callout Banner on solver tabs */}
+        {currentTab !== 'home' && (
+          <div className="p-3 rounded-lg bg-[var(--bg-card,#222d3d)] border border-slate-700/60 flex flex-wrap items-center justify-between gap-3 text-xs font-mono shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-400" />
+              <span className="text-slate-200 font-semibold">Live Camera Automata Solver:</span>
+              <span className="text-slate-300 hidden md:inline">
+                Point your camera at any handwritten or printed state diagram or transition table.
+              </span>
+            </div>
 
-          <button
-            onClick={() => setIsScannerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded bg-indigo-600/90 hover:bg-indigo-600 text-white font-semibold transition-colors shadow-xs"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            <span>Scan Question with Camera</span>
-          </button>
-        </div>
+            <button
+              onClick={() => setIsScannerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-600 text-white font-semibold transition-colors shadow-xs"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Scan Question with Camera</span>
+            </button>
+          </div>
+        )}
 
         {scannedNotice && (
           <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-800/80 text-xs font-mono text-emerald-300 flex items-center justify-between">
@@ -171,6 +175,11 @@ export function App() {
               Dismiss
             </button>
           </div>
+        )}
+
+        {/* HOME DASHBOARD */}
+        {currentTab === 'home' && (
+          <DashboardHome onSelectFeature={feature => setCurrentTab(feature)} />
         )}
 
         {/* MODE 1: NFA TO DFA */}
@@ -185,17 +194,60 @@ export function App() {
               </p>
             </div>
 
-            <AutomataInput
-              value={nfaState}
-              onChange={updated => {
-                setNfaState(updated);
-                handleSolveNfaToDfa(updated);
-              }}
-              expectedType="NFA"
-              onSolve={() => handleSolveNfaToDfa()}
-            />
+            {/* Mobile Sub-Navigation Pills */}
+            <div className="flex lg:hidden items-center p-1 bg-slate-800/90 rounded-lg border border-slate-700 text-xs font-mono gap-1 overflow-x-auto touch-scroll">
+              <button
+                onClick={() => setSolverView('all')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                👁️ All
+              </button>
+              <button
+                onClick={() => setSolverView('input')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'input' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📝 Input
+              </button>
+              <button
+                onClick={() => setSolverView('diagram')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'diagram' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📊 Graph
+              </button>
+              <button
+                onClick={() => setSolverView('solution')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'solution' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                💡 Solution
+              </button>
+            </div>
 
-            {nfaSolution && <StepByStepSolution result={nfaSolution} />}
+            {(solverView === 'all' || solverView === 'input') && (
+              <AutomataInput
+                value={nfaState}
+                onChange={updated => {
+                  setNfaState(updated);
+                  handleSolveNfaToDfa(updated);
+                }}
+                expectedType="NFA"
+                onSolve={() => handleSolveNfaToDfa()}
+              />
+            )}
+
+            {nfaSolution && (solverView === 'all' || solverView === 'diagram' || solverView === 'solution') && (
+              <StepByStepSolution
+                result={nfaSolution}
+                viewSection={solverView}
+              />
+            )}
           </div>
         )}
 
@@ -211,17 +263,60 @@ export function App() {
               </p>
             </div>
 
-            <AutomataInput
-              value={enfaState}
-              onChange={updated => {
-                setEnfaState(updated);
-                handleSolveEnfaToDfa(updated);
-              }}
-              expectedType="ENFA"
-              onSolve={() => handleSolveEnfaToDfa()}
-            />
+            {/* Mobile Sub-Navigation Pills */}
+            <div className="flex lg:hidden items-center p-1 bg-slate-800/90 rounded-lg border border-slate-700 text-xs font-mono gap-1 overflow-x-auto touch-scroll">
+              <button
+                onClick={() => setSolverView('all')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                👁️ All
+              </button>
+              <button
+                onClick={() => setSolverView('input')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'input' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📝 Input
+              </button>
+              <button
+                onClick={() => setSolverView('diagram')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'diagram' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📊 Graph
+              </button>
+              <button
+                onClick={() => setSolverView('solution')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'solution' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                💡 Solution
+              </button>
+            </div>
 
-            {enfaSolution && <StepByStepSolution result={enfaSolution} />}
+            {(solverView === 'all' || solverView === 'input') && (
+              <AutomataInput
+                value={enfaState}
+                onChange={updated => {
+                  setEnfaState(updated);
+                  handleSolveEnfaToDfa(updated);
+                }}
+                expectedType="ENFA"
+                onSolve={() => handleSolveEnfaToDfa()}
+              />
+            )}
+
+            {enfaSolution && (solverView === 'all' || solverView === 'diagram' || solverView === 'solution') && (
+              <StepByStepSolution
+                result={enfaSolution}
+                viewSection={solverView}
+              />
+            )}
           </div>
         )}
 
@@ -237,17 +332,60 @@ export function App() {
               </p>
             </div>
 
-            <AutomataInput
-              value={enfaToNfaState}
-              onChange={updated => {
-                setEnfaToNfaState(updated);
-                handleSolveEnfaToNfa(updated);
-              }}
-              expectedType="ENFA"
-              onSolve={() => handleSolveEnfaToNfa()}
-            />
+            {/* Mobile Sub-Navigation Pills */}
+            <div className="flex lg:hidden items-center p-1 bg-slate-800/90 rounded-lg border border-slate-700 text-xs font-mono gap-1 overflow-x-auto touch-scroll">
+              <button
+                onClick={() => setSolverView('all')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                👁️ All
+              </button>
+              <button
+                onClick={() => setSolverView('input')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'input' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📝 Input
+              </button>
+              <button
+                onClick={() => setSolverView('diagram')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'diagram' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📊 Graph
+              </button>
+              <button
+                onClick={() => setSolverView('solution')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'solution' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                💡 Solution
+              </button>
+            </div>
 
-            {enfaToNfaSolution && <StepByStepSolution result={enfaToNfaSolution} />}
+            {(solverView === 'all' || solverView === 'input') && (
+              <AutomataInput
+                value={enfaToNfaState}
+                onChange={updated => {
+                  setEnfaToNfaState(updated);
+                  handleSolveEnfaToNfa(updated);
+                }}
+                expectedType="ENFA"
+                onSolve={() => handleSolveEnfaToNfa()}
+              />
+            )}
+
+            {enfaToNfaSolution && (solverView === 'all' || solverView === 'diagram' || solverView === 'solution') && (
+              <StepByStepSolution
+                result={enfaToNfaSolution}
+                viewSection={solverView}
+              />
+            )}
           </div>
         )}
 
@@ -263,17 +401,60 @@ export function App() {
               </p>
             </div>
 
-            <AutomataInput
-              value={dfaState}
-              onChange={updated => {
-                setDfaState(updated);
-                handleSolveDfaToNfa(updated);
-              }}
-              expectedType="DFA"
-              onSolve={() => handleSolveDfaToNfa()}
-            />
+            {/* Mobile Sub-Navigation Pills */}
+            <div className="flex lg:hidden items-center p-1 bg-slate-800/90 rounded-lg border border-slate-700 text-xs font-mono gap-1 overflow-x-auto touch-scroll">
+              <button
+                onClick={() => setSolverView('all')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                👁️ All
+              </button>
+              <button
+                onClick={() => setSolverView('input')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'input' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📝 Input
+              </button>
+              <button
+                onClick={() => setSolverView('diagram')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'diagram' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📊 Graph
+              </button>
+              <button
+                onClick={() => setSolverView('solution')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'solution' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                💡 Solution
+              </button>
+            </div>
 
-            {dfaSolution && <StepByStepSolution result={dfaSolution} />}
+            {(solverView === 'all' || solverView === 'input') && (
+              <AutomataInput
+                value={dfaState}
+                onChange={updated => {
+                  setDfaState(updated);
+                  handleSolveDfaToNfa(updated);
+                }}
+                expectedType="DFA"
+                onSolve={() => handleSolveDfaToNfa()}
+              />
+            )}
+
+            {dfaSolution && (solverView === 'all' || solverView === 'diagram' || solverView === 'solution') && (
+              <StepByStepSolution
+                result={dfaSolution}
+                viewSection={solverView}
+              />
+            )}
           </div>
         )}
 
@@ -289,17 +470,60 @@ export function App() {
               </p>
             </div>
 
-            <AutomataInput
-              value={minimizeState}
-              onChange={updated => {
-                setMinimizeState(updated);
-                handleSolveMinimize(updated);
-              }}
-              expectedType="DFA"
-              onSolve={() => handleSolveMinimize()}
-            />
+            {/* Mobile Sub-Navigation Pills */}
+            <div className="flex lg:hidden items-center p-1 bg-slate-800/90 rounded-lg border border-slate-700 text-xs font-mono gap-1 overflow-x-auto touch-scroll">
+              <button
+                onClick={() => setSolverView('all')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                👁️ All
+              </button>
+              <button
+                onClick={() => setSolverView('input')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'input' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📝 Input
+              </button>
+              <button
+                onClick={() => setSolverView('diagram')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'diagram' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📊 Graph
+              </button>
+              <button
+                onClick={() => setSolverView('solution')}
+                className={`px-3 py-1.5 rounded-md flex-1 text-center font-semibold transition-all min-h-[36px] ${
+                  solverView === 'solution' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                💡 Solution
+              </button>
+            </div>
 
-            {minimizeSolution && <StepByStepSolution result={minimizeSolution} />}
+            {(solverView === 'all' || solverView === 'input') && (
+              <AutomataInput
+                value={minimizeState}
+                onChange={updated => {
+                  setMinimizeState(updated);
+                  handleSolveMinimize(updated);
+                }}
+                expectedType="DFA"
+                onSolve={() => handleSolveMinimize()}
+              />
+            )}
+
+            {minimizeSolution && (solverView === 'all' || solverView === 'diagram' || solverView === 'solution') && (
+              <StepByStepSolution
+                result={minimizeSolution}
+                viewSection={solverView}
+              />
+            )}
           </div>
         )}
 
